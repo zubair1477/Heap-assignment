@@ -1,8 +1,3 @@
-/*
-Zubair Rashaad
-1002051693
-*/
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -77,20 +72,6 @@ struct _block *findFreeBlock(struct _block **last, size_t size)
 {
    struct _block *curr = heapList;
 
-   while (curr) 
-   {
-      if (curr->free && curr->size >= size) 
-      {
-         num_reuses++;  
-         return curr;  
-      }
-
-      *last = curr;
-      curr = curr->next;
-   }
-
-   return curr;
-
 #if defined FIT && FIT == 0
    /* First fit */
    //
@@ -110,89 +91,17 @@ struct _block *findFreeBlock(struct _block **last, size_t size)
 
 // \TODO Put your Best Fit code in this #ifdef block
 #if defined BEST && BEST == 0
-   //tracking the best fit block
-   struct _block *best_fit = NULL;
-   //we start with the max so we can find the smallest one
-   size_t best_size = SIZE_MAX;
-
-   while (curr) 
-   {  
-      //we choose the block only if it fits and is also the best fit so far
-      if (curr->free && curr->size >= size && curr->size < best_size) 
-      {
-          best_fit = curr;
-          best_size = curr->size;
-      }
-
-      //keeping track of the previous block
-      *last = curr;
-      //this is the best fitting block found
-      curr = curr->next;
-  }
-
-  curr = best_fit;
+   /** \TODO Implement best fit here */
 #endif
 
 // \TODO Put your Worst Fit code in this #ifdef block
 #if defined WORST && WORST == 0
-   
-   //pointer that will hold the largest fitting block to return
-   struct _block *worst_fit = NULL;
-   //we start with 0 because we are looking for a block larger than 0
-   size_t worst_size = 0;  
-
-   while (curr) 
-   {  
-      //block has to be free and large enough
-   
-      if (curr->free && curr->size >= size && curr->size > worst_size) 
-      {
-         //update when we find a larger block
-         worst_fit = curr;
-         worst_size = curr->size;
-      }
-
-      //this is used to updated the current block
-      *last = curr;
-      //we move to the next block until curr becomes NULL
-      curr = curr->next;
-   }
-
-   //holding the largest block found
-   curr = worst_fit;
+   /** \TODO Implement worst fit here */
 #endif
 
 // \TODO Put your Next Fit code in this #ifdef block
 #if defined NEXT && NEXT == 0
-   
-   //we store the last place we found a block
-   struct _block *next_fit = *last;  
-
-   
-   while (next_fit)
-   {
-      //we check if the current block is free and if it is large enough
-      if (next_fit->free && next_fit->size >= size) 
-      {
-         //if we find a block that is free and large enough we return it
-        return next_fit;
-      }
-      //we update last to the current block
-      *last = next_fit;
-      //then we move to the next block
-      next_fit = next_fit->next;
-   }
-
-   //if we weren't able to find it, we search from the beginning of heaplist
-   curr = heapList;
-   while (curr)
-   {
-      if (curr->free && curr->size >= size) 
-      {
-         return curr;
-      }
-      curr = curr->next;
-   }
+   /** \TODO Implement next fit here */
 #endif
 
    return curr;
@@ -223,7 +132,6 @@ struct _block *growHeap(struct _block *last, size_t size)
    {
       return NULL;
    }
-  
 
    /* Update heapList if not set */
    if (heapList == NULL) 
@@ -244,16 +152,6 @@ struct _block *growHeap(struct _block *last, size_t size)
    curr->size = size;
    curr->next = NULL;
    curr->free = false;
-
-   num_grows++;  
-   
-   //updating max heap 
-   if (max_heap < size)
-   {
-      max_heap =  size;
-   }
-
-   num_blocks++;  
    return curr;
 }
 
@@ -310,39 +208,9 @@ void *malloc(size_t size)
    {
       return NULL;
    }
-
-   //here we split when the block is free and make sure there is enough space leftover
-   if (next->free && next->size > size + sizeof(struct _block) + 4)
-   {
-      //this is the start of the leftover memory, hence our new block
-      struct _block *split_block = (struct _block *)((char *)BLOCK_DATA(next) + size);
-
-      //here we initialize our new free block and it gets the leftover size
-      split_block->size = next->size - size - sizeof(struct _block);
-
-      //we inherit the next pointer of the original block and also mark the block as free
-      split_block->next = next->next;
-      split_block->free = true;
-
-      //here we shrink the original block 
-      next->size = size;
-      //here we point to the newly split block
-      next->next = split_block;
-
-      // here we keep track and increment the number of times blocks were split
-      num_splits++;
-      num_blocks++;
-
-   }
-
-
-
    
    /* Mark _block as in use */
    next->free = false;
-
-   num_mallocs++;
-   num_requested += size;
 
    /* Return data address associated with _block to the user */
    return BLOCK_DATA(next);
@@ -370,99 +238,21 @@ void free(void *ptr)
    assert(curr->free == 0);
    curr->free = true;
 
-   num_frees++;
-
    /* TODO: Coalesce free _blocks.  If the next block or previous block 
             are free then combine them with this block being freed.
    */
-   
-   //here we check if there's a free block after the current one
-   if(curr->next && curr->next->free)
-   {
-      //we increase the current blocks size to fit the next block
-      curr->size += sizeof(struct _block) + curr->next->size;
-      //here we skip over the next block since its now part of the current
-      curr->next = curr->next->next;
-
-      //we increment the number of coalesces operations and decrement the number of blocks
-      num_coalesces++;
-      
-   }
-
-   num_blocks--;
-   
 }
 
 void *calloc( size_t nmemb, size_t size )
 {
-   //computing the memory we need before passing to malloc
-   size_t total_size = nmemb * size;
-
-   void *ptr = malloc(total_size);
-
-   //if the memory allocation was unsuccessful
-   if(ptr == NULL)
-   {
-      return NULL;
-   }
-   //if memory allocation was successful, allocated memory is set to 0
-   else
-   {
-      memset(ptr,0,total_size);
-   }
-
-   return ptr;
+   // \TODO Implement calloc
+   return NULL;
 }
 
 void *realloc( void *ptr, size_t size )
 {
-
-   //when ptr is null it behaves like malloc so we use it to allocate a new block of memory
-   if (ptr == NULL) 
-   {
-      return malloc(size);
-   }
-
-  //when the size is 0 it acts like free so we call it to free the memory block pointed at
-  if (size == 0) 
-  {
-      free(ptr);
-      return NULL;
-  }
-
-  //we allocated a new block of memory 
-  void *temp_ptr = malloc(size);
-
-  //
-  if (temp_ptr == NULL) 
-  {
-      return NULL;
-  }
-
-  //we get the size of the previous block of memory
-  size_t old_size = BLOCK_HEADER(ptr)->size;
-
-  // we calculate the minimum of the old block and new block size
-  size_t min_new_size;
-  
-  //only the amount of memory valid in the new block is copied from the old block
-  if (old_size < size) 
-  {
-      min_new_size = old_size;
-  } 
-  else 
-  {
-      min_new_size = size;
-  }
-
- //data from the old block is copied to the new one
-  memcpy(temp_ptr, ptr, min_new_size);
-
-  
-  free(ptr);
-
-  
-  return temp_ptr;
+   // \TODO Implement realloc
+   return NULL;
 }
 
 
